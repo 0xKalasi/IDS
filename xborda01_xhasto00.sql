@@ -96,7 +96,7 @@ CREATE TABLE Orders (
     expected_finish_date DATE,
     price INT,
     billable_time INT,
-    "description" VARCHAR(500),
+    "description" VARCHAR(100),
     vehicle_ID VARCHAR(17),
     customer_ID INT,
     technician_ID INT,
@@ -203,7 +203,8 @@ INSERT INTO Individuals (Customer_id, first_name, last_name) VALUES (3, 'Mike', 
 INSERT INTO Companies (Customer_id, IC, DIC) VALUES (2, '12345678', 'SK1234567890');
 
 INSERT INTO Vehicles (VIN, customer_ID, customer_tag) VALUES ('1HGCM82633A123456', 1, 'Osobné auto');
-INSERT INTO Vehicles (VIN, customer_ID, customer_tag) VALUES ('2HGCM82633A654321', 2, 'Firemné vozidlo');
+INSERT INTO Vehicles (VIN, customer_ID, customer_tag) VALUES ('2HGCM82633A654321', 2, 'Firemné vozidlo 1');
+INSERT INTO Vehicles (VIN, customer_ID, customer_tag) VALUES ('48H1M82633A654123', 2, 'Firemné vozidlo 2');
 
 INSERT INTO Workplace ("name") VALUES ('Brana 1');
 INSERT INTO Workplace ("name") VALUES ('Brana 2');
@@ -219,13 +220,20 @@ INSERT INTO Employees (first_name, last_name, email, phone_number, workplace_ID)
 
 INSERT INTO Orders ("state", start_date, expected_finish_date, price, billable_time, "description", vehicle_ID, customer_ID, technician_ID) VALUES
 (0, TO_DATE('2024-03-01', 'YYYY-MM-DD'), TO_DATE('2024-03-05', 'YYYY-MM-DD'), 500.00, 14400, 'Výmena bŕzd', '1HGCM82633A123456', 1, 1);
+
 INSERT INTO Orders ("state", start_date, expected_finish_date, price, billable_time, "description", vehicle_ID, customer_ID, technician_ID) VALUES
 (3, TO_DATE('2024-02-20', 'YYYY-MM-DD'), TO_DATE('2024-02-25', 'YYYY-MM-DD'), 300.00, 10800, 'Servis klimatizácie', '2HGCM82633A654321', 2, 2);
+INSERT INTO Orders ("state", start_date, expected_finish_date, price, billable_time, "description", vehicle_ID, customer_ID, technician_ID) VALUES
+(0, TO_DATE('2024-03-01', 'YYYY-MM-DD'), TO_DATE('2024-03-05', 'YYYY-MM-DD'), 400.00, 14400, 'Výmena bŕzd', '2HGCM82633A654321', 2, 1);
+INSERT INTO Orders ("state", start_date, expected_finish_date, price, billable_time, "description", vehicle_ID, customer_ID, technician_ID) VALUES
+(0, TO_DATE('2024-03-01', 'YYYY-MM-DD'), TO_DATE('2024-03-05', 'YYYY-MM-DD'), 450.00, 14400, 'Výmena bŕzd', '48H1M82633A654123', 2, 1);
 
 INSERT INTO Calendar_Items (order_ID, "date", "start_time", "end_time", "type", created_by_ID, workplace_ID, mechanic_ID) VALUES 
-(1, TO_DATE('2024-03-02', 'YYYY-MM-DD'), TO_TIMESTAMP('2024-03-02 08:00:00', 'YYYY-MM-DD HH24:MI:SS'), TO_TIMESTAMP('2024-03-02 12:00:00', 'YYYY-MM-DD HH24:MI:SS'), 0, 1, 1, 1);
+(1, TO_DATE('2024-03-02', 'YYYY-MM-DD'), TO_TIMESTAMP('2024-03-02 08:00:00', 'YYYY-MM-DD HH24:MI:SS'), TO_TIMESTAMP('2024-03-02 12:00:00', 'YYYY-MM-DD HH24:MI:SS'), 0, 1, 1, 2);
 INSERT INTO Calendar_Items (order_ID, "date", "start_time", "end_time", "type", created_by_ID, workplace_ID, mechanic_ID) VALUES 
-(2, TO_DATE('2024-02-21', 'YYYY-MM-DD'), TO_TIMESTAMP('2024-02-21 10:00:00', 'YYYY-MM-DD HH24:MI:SS'), TO_TIMESTAMP('2024-02-21 14:00:00', 'YYYY-MM-DD HH24:MI:SS'), 1, 2, 2, 2);
+(2, TO_DATE('2024-02-21', 'YYYY-MM-DD'), TO_TIMESTAMP('2024-02-21 10:00:00', 'YYYY-MM-DD HH24:MI:SS'), TO_TIMESTAMP('2024-02-21 14:00:00', 'YYYY-MM-DD HH24:MI:SS'), 1, 1, 2, 2);
+INSERT INTO Calendar_Items (order_ID, "date", "start_time", "end_time", "type", created_by_ID, workplace_ID, mechanic_ID) VALUES 
+(1, TO_DATE('2024-03-03', 'YYYY-MM-DD'), TO_TIMESTAMP('2024-03-03 08:00:00', 'YYYY-MM-DD HH24:MI:SS'), TO_TIMESTAMP('2024-03-03 12:00:00', 'YYYY-MM-DD HH24:MI:SS'), 0, 1, 1, 2);
 
 INSERT INTO Services (price, expected_time, needed_specialisation, "type") VALUES (100.00, 7200, 'Brzdový systém', 0);
 INSERT INTO Services (price, expected_time, needed_specialisation, "type") VALUES (80.00, 5400, 'Klimatizácia', 1);
@@ -250,5 +258,57 @@ INSERT INTO Items_on_order (item_id, order_id) VALUES (2,2);
 INSERT INTO Services_on_order (service_id, order_id) VALUES (1,1);
 INSERT INTO Services_on_order (service_id, order_id) VALUES (2,1);
 INSERT INTO Services_on_order (service_id, order_id) VALUES (2,2);
+
+-- 3. PART - SQL SELECTS --
+
+-- Three queries that join 2 tables
+    -- Get all vehicles for each customer
+    SELECT Customers.email, Vehicles.VIN, Vehicles.customer_tag FROM Customers
+    JOIN Vehicles ON Vehicles.customer_ID = Customers.ID;
+
+    -- Get all orders with its description and assigned dates (ordered by order's ID)
+    SELECT Orders.ID, Orders."description", Calendar_Items."date"
+    FROM Orders 
+    JOIN Calendar_Items ON Calendar_Items.order_ID = Orders.ID
+    ORDER BY Orders.ID ASC;
+
+    -- Get employees per workplace
+    SELECT Workplace."name" AS "Workplace name", Employees.first_name, Employees.last_name 
+    FROM Workplace 
+    JOIN Employees ON Employees.workplace_ID = Workplace.ID
+    ORDER BY Workplace.ID ASC;
+
+-- One query that joins 3 tables
+    -- Get all orders each with its assigned customer and technician 
+    SELECT Orders.ID AS "Order", Customers.email AS "Customer email", Employees.email AS "Employee email" 
+    FROM Orders 
+    JOIN Customers ON Customers.ID = Orders.customer_ID
+    JOIN Employees ON Employees.ID = Orders.technician_ID;
+    
+-- Three queries with GROUP BY clause and aggregation function
+    -- Get count of orders processed by each technician
+    SELECT COUNT(ID) AS "Count of orders", Technician_ID FROM Orders GROUP BY Technician_ID;
+
+    -- Get average price per type
+    SELECT AVG(price) AS "Average price", "type" AS "Service type" FROM Services GROUP BY "type";
+
+    -- Get total price of orders for customer per vehicle 
+    SELECT SUM(price) AS "Total price", customer_ID, vehicle_ID AS "Vehicle VIN" FROM Orders 
+    WHERE Orders.customer_ID = 2 -- company ID
+    GROUP BY customer_ID, vehicle_ID;
+
+-- One query with predicate EXISTS
+    -- Get calendar items that are not assigned yet 
+    SELECT * FROM Calendar_Items 
+    WHERE EXISTS (SELECT ID FROM Technician WHERE Technician.ID = Calendar_Items.created_by_ID AND Calendar_Items.is_assigned = 0);
+
+-- Two queries with predicate IN with nested SELECT
+    -- Get employees who are mechanics (show personal details about mechanics) 
+    SELECT * FROM Employees 
+    WHERE ID IN (SELECT Employee_id FROM Mechanic);
+
+    -- Get all customers who are individuals
+    SELECT * FROM Customers
+    WHERE ID IN (SELECT Customer_id FROM Individuals);
 
 COMMIT;
