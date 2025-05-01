@@ -220,7 +220,6 @@ INSERT INTO Employees (first_name, last_name, email, phone_number, workplace_ID)
 
 INSERT INTO Orders ("state", start_date, expected_finish_date, price, billable_time, "description", vehicle_ID, customer_ID, technician_ID) VALUES
 (0, TO_DATE('2024-03-01', 'YYYY-MM-DD'), TO_DATE('2024-03-05', 'YYYY-MM-DD'), 500.00, 14400, 'Výmena bŕzd', '1HGCM82633A123456', 1, 1);
-
 INSERT INTO Orders ("state", start_date, expected_finish_date, price, billable_time, "description", vehicle_ID, customer_ID, technician_ID) VALUES
 (3, TO_DATE('2024-02-20', 'YYYY-MM-DD'), TO_DATE('2024-02-25', 'YYYY-MM-DD'), 300.00, 10800, 'Servis klimatizácie', '2HGCM82633A654321', 2, 2);
 INSERT INTO Orders ("state", start_date, expected_finish_date, price, billable_time, "description", vehicle_ID, customer_ID, technician_ID) VALUES
@@ -310,5 +309,66 @@ INSERT INTO Services_on_order (service_id, order_id) VALUES (2,2);
     -- Get all customers who are individuals
     SELECT * FROM Customers
     WHERE ID IN (SELECT Customer_id FROM Individuals);
+
+
+-- 4. PART --
+-- prida po vyrtvoreni objednavky automaticky polozku do calendar_items 
+-- ak uz existuje v calendar_items polozka s rovnakym datumom aky chceme vlozit datum a zvacsi o 1 den
+-- skusal som to este aj s order_ID robit ale boli tam problemy s ich porovnavanim (ta co je v cal_i a tej co chceme vlozit)
+CREATE OR REPLACE TRIGGER add_Calendar_Item
+AFTER INSERT ON Orders
+FOR EACH ROW
+DECLARE
+    new_date DATE := :NEW.start_date;
+    conflict_count INTEGER;
+BEGIN
+    LOOP
+        SELECT COUNT(*) INTO conflict_count
+        FROM Calendar_Items
+        WHERE "date" = new_date;
+        EXIT WHEN conflict_count = 0;
+        new_date := new_date + 1;
+    END LOOP;
+    
+    INSERT INTO Calendar_Items (order_ID, "date", "start_time", "end_time", "type", created_by_ID, workplace_ID, mechanic_ID)
+    VALUES (1, new_date, TO_TIMESTAMP(TO_CHAR(new_date, 'YYYY-MM-DD') || ' 15:00:00', 'YYYY-MM-DD HH24:MI:SS'), TO_TIMESTAMP(TO_CHAR(new_date, 'YYYY-MM-DD') || ' 17:00:00', 'YYYY-MM-DD HH24:MI:SS'), 1, 1, 1, 2);
+END;
+/
+
+
+SELECT * FROM Calendar_Items ORDER BY ID;
+
+INSERT INTO Orders ("state", start_date, expected_finish_date, price, billable_time, "description", vehicle_ID, customer_ID, technician_ID) 
+VALUES (1, DATE '2024-03-03', DATE '2024-03-03', 500, 4, 'Tlmiče', '48H1M82633A654123', 2, 1);
+
+SELECT * FROM Calendar_Items ORDER BY ID;
+
+-- zmeni stav obj. pokial ziadna obj. nie je rozpracovana (tj. stav 2) este sa ale dohodnime na ten stav viac ako funguje bo uz si nepamatam
+-- prezre Orders najde tie zo state 1 zoradi a vyberie 1. (ma zacat najskor) a aktualizuje jej stav v Orders
+CREATE OR REPLACE TRIGGER activate_order
+AFTER INSERT ON Orders
+DECLARE
+    now_active NUMBER;
+    oldest_id Orders.ID%TYPE;
+BEGIN
+    SELECT COUNT(*) INTO now_active
+    FROM Orders
+    WHERE "state" = 2;
+
+    IF now_active = 0 THEN
+        SELECT ID INTO oldest_id
+        FROM (SELECT ID FROM Orders WHERE "state" = 1 ORDER BY start_date) 
+        WHERE ROWNUM = 1;
+        UPDATE Orders
+        SET "state" = 2
+        WHERE ID = oldest_id;
+    END IF;
+END;
+/
+
+SELECT ID, "state", start_date FROM Orders ORDER BY start_date;
+INSERT INTO Orders ("state", start_date, expected_finish_date, price, billable_time, "description", vehicle_ID, customer_ID, technician_ID) 
+VALUES (1, DATE '2024-03-10', DATE '2024-03-10', 500, 4, 'Tlmiče', '48H1M82633A654123', 2, 1);
+SELECT ID, "state", start_date FROM Orders ORDER BY start_date;
 
 COMMIT;
