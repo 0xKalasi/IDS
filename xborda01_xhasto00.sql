@@ -504,9 +504,11 @@ INSERT INTO Services_on_order (service_id, order_id, quantity) VALUES (2,2,1);
 
         SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY);
 
+    -- INDEX FOR OPTIMIZING SELECT COST
     CREATE INDEX Orders_customerID_I
     ON Orders(customer_ID);
 
+    -- THE SAME SELECT, BUT NOW WITH INDEX
     EXPLAIN PLAN FOR 
         -- Get total price of orders and total count of orders for each vehicle in the system also with email of the customer the vehicle belongs to
         SELECT SUM(price) AS "Total price of orders", COUNT(Orders.ID) AS "Count of orders", vehicle_ID AS "Vehicle VIN", email
