@@ -222,11 +222,11 @@ INSERT INTO Employees (first_name, last_name, email, phone_number, workplace_ID)
 ('Jozef', 'Sota', 'jozef.sota@example.com', '129406873', 3);
 
 INSERT INTO Orders ("state", start_date, expected_finish_date, price, billable_time, "description", vehicle_ID, customer_ID, technician_ID) VALUES
-(1, TO_DATE('2024-03-01', 'YYYY-MM-DD'), TO_DATE('2024-03-05', 'YYYY-MM-DD'), 0.00, 0, 'Výmena bŕzd', '1HGCM82633A123456', 1, 1);
+(1, TO_DATE('2024-03-03', 'YYYY-MM-DD'), TO_DATE('2024-03-05', 'YYYY-MM-DD'), 0.00, 0, 'Výmena bŕzd', '1HGCM82633A123456', 1, 1);
 INSERT INTO Orders ("state", start_date, expected_finish_date, price, billable_time, "description", vehicle_ID, customer_ID, technician_ID) VALUES
 (3, TO_DATE('2024-02-20', 'YYYY-MM-DD'), TO_DATE('2024-02-25', 'YYYY-MM-DD'), 300.00, 10800, 'Servis klimatizácie', '2HGCM82633A654321', 2, 2);
 INSERT INTO Orders ("state", start_date, expected_finish_date, price, billable_time, "description", vehicle_ID, customer_ID, technician_ID) VALUES
-(1, TO_DATE('2024-03-01', 'YYYY-MM-DD'), TO_DATE('2024-03-05', 'YYYY-MM-DD'), 400.00, 14400, 'Výmena bŕzd', '2HGCM82633A654321', 2, 1);
+(1, TO_DATE('2024-03-02', 'YYYY-MM-DD'), TO_DATE('2024-03-05', 'YYYY-MM-DD'), 400.00, 14400, 'Výmena bŕzd', '2HGCM82633A654321', 2, 1);
 INSERT INTO Orders ("state", start_date, expected_finish_date, price, billable_time, "description", vehicle_ID, customer_ID, technician_ID) VALUES
 (1, TO_DATE('2024-03-01', 'YYYY-MM-DD'), TO_DATE('2024-03-05', 'YYYY-MM-DD'), 450.00, 14400, 'Výmena bŕzd', '48H1M82633A654123', 2, 1);
 
@@ -254,10 +254,12 @@ INSERT INTO Mechanic_Has_Program (mechanic_id, program_id) VALUES (1,1);
 INSERT INTO Mechanic_Has_Program (mechanic_id, program_id) VALUES (1,2);
 
 INSERT INTO Items_on_order (item_id, order_id, quantity) VALUES (1,2,2);
+INSERT INTO Items_on_order (item_id, order_id, quantity) VALUES (1,4,2);
 INSERT INTO Items_on_order (item_id, order_id, quantity) VALUES (2,2,1);
 INSERT INTO Items_on_order (item_id, order_id, quantity) VALUES (2,2,2);
 
 INSERT INTO Services_on_order (service_id, order_id, quantity) VALUES (1,2,2);
+INSERT INTO Services_on_order (service_id, order_id, quantity) VALUES (1,4,2);
 INSERT INTO Services_on_order (service_id, order_id, quantity) VALUES (2,2,1);
 INSERT INTO Services_on_order (service_id, order_id, quantity) VALUES (2,2,1);
 
@@ -383,5 +385,114 @@ INSERT INTO Services_on_order (service_id, order_id, quantity) VALUES (2,2,1);
 
     -- after second trigger
     SELECT * FROM Orders WHERE ID = 1;
+
+
+-- PROCEDURE 1
+CREATE OR REPLACE PROCEDURE issue_an_invoice_of_technician(technician_id IN Orders.technician_ID%TYPE) IS
+    oldest_order_id Orders.ID%TYPE;
+    veh_VIN Vehicles.VIN%TYPE;
+    cust_mail Customers.email%TYPE;
+    ord_price Orders.price%TYPE;
+    ord_bill_time Orders.billable_time%TYPE;
+    service_type INTEGER;
+    item_name Store_Items."name"%TYPE;
+
+    -- cursor for getting nearest order of technician (by date and state of order)
+    CURSOR cursor_orders IS
+    SELECT ID
+    FROM Orders
+    WHERE "state" = 1 AND technician_ID = technician_id
+    ORDER BY start_date;
+
+BEGIN
+    -- fethcing the nearest order
+    OPEN cursor_orders;
+    FETCH cursor_orders INTO oldest_order_id;
+    CLOSE cursor_orders;
+
+    -- update state of the chosen order
+    UPDATE Orders
+    SET "state" = 2
+    WHERE ID = oldest_order_id;
+    
+    -- prepare and issue an invoice
+    SELECT Orders.price, Orders.billable_time, Vehicles.VIN, Customers.email
+    INTO ord_price, ord_bill_time, veh_VIN, cust_mail
+    FROM Orders
+    JOIN Vehicles ON Orders.vehicle_ID = Vehicles.VIN
+    JOIN Customers ON Orders.customer_ID = Customers.ID
+    WHERE Orders.ID = oldest_order_id;
+
+    -- get service type
+    SELECT "type"
+    INTO service_type 
+    FROM Services
+    JOIN Services_on_order ON Services_on_order.SERVICE_ID = Services.ID
+    WHERE oldest_order_id = Services_on_order.ORDER_ID;
+
+    -- get item name
+    SELECT "name"
+    INTO item_name 
+    FROM Store_Items
+    JOIN Items_on_order ON Items_on_order.item_id = Store_Items.ID
+    WHERE oldest_order_id = Items_on_order.ORDER_ID;
+
+    DBMS_OUTPUT.PUT_LINE('Invoice');
+    DBMS_OUTPUT.PUT_LINE('Order ID: ' || oldest_order_id);
+    DBMS_OUTPUT.PUT_LINE('Vehicle VIN: ' || veh_VIN);
+    DBMS_OUTPUT.PUT_LINE('Customer e-mail: ' || cust_mail);
+    DBMS_OUTPUT.PUT_LINE('Price: ' || ord_price);
+    DBMS_OUTPUT.PUT_LINE('Billable time: ' || ord_bill_time);
+    DBMS_OUTPUT.PUT_LINE('Service type: ' || service_type);
+    DBMS_OUTPUT.PUT_LINE('Item name: ' || item_name);
+
+    -- when technician has no orders to issue an invoice
+    EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+    DBMS_OUTPUT.PUT_LINE('Technician has no Orders for issue fine.');
+END;
+/
+SET SERVEROUTPUT ON;
+-- calling procedure 1
+BEGIN 
+    issue_an_invoice_of_technician(1);
+END;
+/
+-- shows states of technician orders after porcedure 1
+SELECT ID, "state", start_date, technician_ID FROM Orders WHERE technician_ID = 1 ORDER BY start_date;
+
+-- PROCEDURE 2
+CREATE OR REPLACE PROCEDURE show_managing_orders(technician_id IN Orders.technician_ID%TYPE) IS
+    --cursor for getting all technician orders with state 0 or 1
+    CURSOR cursor2_orders IS
+    SELECT ID, start_date, expected_finish_date, "state"
+    FROM Orders
+    WHERE technician_ID = show_managing_orders.technician_id
+    AND "state" IN (0, 1)
+    ORDER BY start_date;
+
+    one_row cursor2_orders%ROWTYPE;
+BEGIN
+    -- show information from orders managed by technician
+    OPEN cursor2_orders;
+    LOOP
+        FETCH cursor2_orders INTO one_row;
+        EXIT WHEN cursor2_orders%NOTFOUND;
+        DBMS_OUTPUT.PUT_LINE('Order ID: ' || one_row.ID || ', Start: ' || one_row.start_date || ', Finish: ' || one_row.expected_finish_date || ', State: ' || one_row."state");
+    END LOOP;
+    CLOSE cursor2_orders;
+
+-- current technician has no orders to show
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+    DBMS_OUTPUT.PUT_LINE('Technician has no Orders to show.');
+END;
+/
+-- calling procedure 2
+BEGIN
+    show_managing_orders(1);
+END;
+/
+
 
 COMMIT;
