@@ -549,23 +549,28 @@ INSERT INTO Services_on_order (service_id, order_id, quantity) VALUES (2,2,1);
 
 -- ACCESS RULES FOR XBORDA01 (XHASTO00 DID THIS ON HIS DATABASE, THAT HAS EVERYTHING ABOVE IN THIS SCRIPT)
     -- GRANT ALL ON Calendar_Items TO XBORDA01;
-    -- GRANT ALL ON Technician TO XBORDA01;
+    -- GRANT ALL ON Employees TO XBORDA01;
 
 -- MATERIALIZED VIEW OF XBORDA01 THAT USES XHASTO00 TABLES
-    -- Get calendar items that are not assigned yet 
+    -- Get calendar items with mechanic's details
     CREATE MATERIALIZED VIEW "not_assigned_calendar_items" AS
-    SELECT * FROM XHASTO00.Calendar_Items;
+    SELECT order_ID, "date", "start_time", "end_time", is_assigned, first_name AS "Mechanic first name", last_name AS "Mechanic last name", email AS "Mechanic e-mail"
+    FROM XHASTO00.Calendar_Items c
+    JOIN XHASTO00.Employees e ON e.ID = c.mechanic_ID;
 
-    -- get return from materialized view
+    -- run materialized view
     SELECT * FROM "not_assigned_calendar_items";
 
-    -- update something from materialized view
+    -- update something that is part of materialized view
     UPDATE XHASTO00.Calendar_Items SET is_assigned = 1 WHERE ID = 1;
 
-    -- get retrun from materialized view again (no changes)
+    -- run materialized view again (no changes, because materialized view does not update)
     SELECT * FROM "not_assigned_calendar_items";
 
-    -- but something changed in his table (materialized view are read-only and data are not being updated in it)
+    -- but the updated row is in his table
     SELECT * FROM XHASTO00.Calendar_Items;
+
+    -- set the item back to is_assigned = 0 (to run this code multiple times)
+    UPDATE XHASTO00.Calendar_Items SET is_assigned = 0 WHERE ID = 1;
 
 COMMIT;
