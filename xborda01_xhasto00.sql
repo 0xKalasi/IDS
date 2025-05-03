@@ -29,6 +29,7 @@ DROP TABLE Services_on_order CASCADE CONSTRAINTS;
 DROP TABLE Items_on_order CASCADE CONSTRAINTS;
 DROP TABLE Mechanic_Has_Program CASCADE CONSTRAINTS;
 DROP SEQUENCE Var_Symbol;
+DROP MATERIALIZED VIEW "not_assigned_calendar_items";
 
 -- Generalization/Specialization - Customers, Individuals, Companies
 -- Implemented by adding foreign key into Individuals/Companies table
@@ -546,7 +547,25 @@ INSERT INTO Services_on_order (service_id, order_id, quantity) VALUES (2,2,1);
         LEFT JOIN Companies c ON c.customer_id = cid
         ORDER BY discount_tier, email;
 
--- ACCESS RULES FOR 2nd TEAM MEMBER
-    
+-- ACCESS RULES FOR XBORDA01 (XHASTO00 DID THIS ON HIS DATABASE, THAT HAS EVERYTHING ABOVE IN THIS SCRIPT)
+    -- GRANT ALL ON Calendar_Items TO XBORDA01;
+    -- GRANT ALL ON Technician TO XBORDA01;
+
+-- MATERIALIZED VIEW OF XBORDA01 THAT USES XHASTO00 TABLES
+    -- Get calendar items that are not assigned yet 
+    CREATE MATERIALIZED VIEW "not_assigned_calendar_items" AS
+    SELECT * FROM XHASTO00.Calendar_Items;
+
+    -- get return from materialized view
+    SELECT * FROM "not_assigned_calendar_items";
+
+    -- update something from materialized view
+    UPDATE XHASTO00.Calendar_Items SET is_assigned = 1 WHERE ID = 1;
+
+    -- get retrun from materialized view again (no changes)
+    SELECT * FROM "not_assigned_calendar_items";
+
+    -- but something changed in his table (materialized view are read-only and data are not being updated in it)
+    SELECT * FROM XHASTO00.Calendar_Items;
 
 COMMIT;
