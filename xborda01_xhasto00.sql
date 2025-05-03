@@ -411,7 +411,7 @@ INSERT INTO Services_on_order (service_id, order_id, quantity) VALUES (2,2,1);
         ORDER BY start_date;
 
     BEGIN
-        -- fethcing the nearest order
+        -- fetch order
         OPEN cursor_orders;
         FETCH cursor_orders INTO oldest_order_id;
         CLOSE cursor_orders;
@@ -447,14 +447,14 @@ INSERT INTO Services_on_order (service_id, order_id, quantity) VALUES (2,2,1);
         DBMS_OUTPUT.PUT_LINE('Service type: ' || service_type);
         DBMS_OUTPUT.PUT_LINE('Item name: ' || item_name);
 
-        -- when technician has no orders to issue an invoice
+        -- when technician has no orders to issue an invoice on
         EXCEPTION
         WHEN NO_DATA_FOUND THEN
         DBMS_OUTPUT.PUT_LINE('Technician has no Orders for issue fine.');
     END;
     /
 
-    -- calling procedure 1
+    -- call procedure 1
     SET SERVEROUTPUT ON;
     BEGIN 
         issue_an_invoice_of_technician(1);
@@ -463,7 +463,7 @@ INSERT INTO Services_on_order (service_id, order_id, quantity) VALUES (2,2,1);
 
 -- PROCEDURE 2
     CREATE OR REPLACE PROCEDURE show_managing_orders(technician_id IN Orders.technician_ID%TYPE) IS
-        --cursor for getting all technician orders with state 0 or 1
+        --cursor to get all technician's orders with state 0 or 1
         CURSOR cursor2_orders IS
         SELECT ID, start_date, expected_finish_date, "state"
         FROM Orders
@@ -488,7 +488,7 @@ INSERT INTO Services_on_order (service_id, order_id, quantity) VALUES (2,2,1);
         DBMS_OUTPUT.PUT_LINE('Technician has no Orders to show.');
     END;
     /
-    -- calling procedure 2
+    -- call procedure 2
     BEGIN
         show_managing_orders(1);
     END;
@@ -505,7 +505,7 @@ INSERT INTO Services_on_order (service_id, order_id, quantity) VALUES (2,2,1);
 
         SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY);
 
-    -- INDEX FOR OPTIMIZING SELECT COST
+    -- INDEX FOR OPTIMIZING COST
     CREATE INDEX Orders_customerID_I
     ON Orders(customer_ID);
 
