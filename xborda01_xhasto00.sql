@@ -508,7 +508,7 @@ INSERT INTO Services_on_order (service_id, order_id, quantity) VALUES (2,2,1);
     CREATE INDEX Orders_customerID_I
     ON Orders(customer_ID);
 
-    -- THE SAME SELECT, BUT NOW WITH INDEX
+    -- THE SAME SELECT EXPLAIN PLAN, BUT NOW WITH INDEX
     EXPLAIN PLAN FOR 
         -- Get total price of orders and total count of orders for each vehicle in the system also with email of the customer the vehicle belongs to
         SELECT SUM(price) AS "Total price of orders", COUNT(Orders.ID) AS "Count of orders", vehicle_ID AS "Vehicle VIN", email
@@ -518,5 +518,35 @@ INSERT INTO Services_on_order (service_id, order_id, quantity) VALUES (2,2,1);
         ORDER BY SUM(price) DESC;
 
         SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY);
+
+-- SELECT, WITH, CASE
+    -- subquery on Orders - sum of order prices per customer (we also save Customers.ID to later add info about customer from Individuals or Companies)
+    -- case statement sets customers into discount tiers (next order will include a discount)
+    WITH order_prices AS (
+        SELECT SUM(price) AS "Total price of orders", email, Customers.ID AS cid
+        FROM Orders
+        JOIN Customers ON Customers.ID = Orders.customer_ID
+        GROUP BY email, Customers.ID
+        )
+    SELECT "Total price of orders", email, 
+        i.first_name, i.last_name, i.variable_symbol,
+        c.IC, c.DIC,
+        CASE 
+            WHEN "Total price of orders" > 0 AND "Total price of orders" < 500
+                THEN '1-tier'
+            WHEN "Total price of orders" >= 500 AND "Total price of orders" < 1000
+                THEN '2-tier'
+            WHEN "Total price of orders" >= 1000 AND "Total price of orders" < 5000
+                THEN '3-tier'
+            ELSE 
+                '4-tier'
+        END discount_tier
+        FROM order_prices
+        LEFT JOIN Individuals i ON i.customer_id = cid
+        LEFT JOIN Companies c ON c.customer_id = cid
+        ORDER BY discount_tier, email;
+
+-- ACCESS RULES FOR 2nd TEAM MEMBER
+    
 
 COMMIT;
